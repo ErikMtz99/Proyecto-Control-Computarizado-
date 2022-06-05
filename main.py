@@ -1,15 +1,19 @@
 import numpy as np
 from matplotlib import pyplot as plt
 from tkinter import Tk, Label, Entry, Button
+import matplotlib.animation as animation
 import tkinter as tk
 import math
+from PIL import ImageTk, Image
 
 root = Tk()
 root.title('Proyecto Control Computarizado')
 root.geometry("800x620")
 root.configure(background='#ADD8E6')
 
-ARRAY_SIZE = 100
+global ani
+#https://stackoverflow.com/questions/21099121/python-matplotlib-unable-to-call-funcanimation-from-inside-a-function
+
 
 #--------------- T I T U L O S -----------------
 titulo = tk.Label(root, 
@@ -245,6 +249,7 @@ def func_manual():
     reg1.grid(row=11, column = 1, pady=10)
     
     
+    
 #****************** A R X **********************
 #-----------------------------------------------
 def func_ARX():
@@ -298,9 +303,19 @@ def func_ARX():
     
 
 
-
 def func_ARX_2():
-    
+    global ani
+    def func(n):
+        global ani
+        im.set_xdata(np.arange(n)*T)
+        im.set_ydata(y_flip[0:n])
+        if n>repeat_length:
+            lim = ax.set_xlim(n-repeat_length, n)
+        else:
+            lim = ax.set_xlim(0,repeat_length)
+        return im
+
+
     M = float(e1.get())           #Magnitud de escalón 
     Pe = float(e2.get())          #Magnitud ruido entrada 
     Ps = float(e3.get())          #Magnitud ruido salida 
@@ -309,7 +324,7 @@ def func_ARX_2():
     a2 = float(e5.get())                       
     a3 = float(e6.get())                       
     a4 = float(e7.get())                       
-    
+
                                       # b's
     b0 = float(e8.get())                      
     b1 = float(e9.get())                      
@@ -319,52 +334,77 @@ def func_ARX_2():
     
     d = int(e13.get())            #Retraso
     T = float(e14.get())          #Intervalo de Muestreo
-        
-    
+
+    ARRAY_SIZE = 100
     y = np.zeros(ARRAY_SIZE)      #Lista valores de salida
     y_interval = np.zeros(ARRAY_SIZE)
     x = np.zeros(ARRAY_SIZE)      #Lista de intervalos kT
     u = np.zeros(ARRAY_SIZE)      #Lista valores de escalón entrada
-        
+    
+
+     #data generator
+    data = np.random.random((100,))
+    
+    #setup figure
+    fig = plt.figure(figsize=(5,4))
+    ax = fig.add_subplot(1,1,1)
+    ax.grid()
+    #rolling window size 
+    repeat_length = 50
+    
+    ax.set_xlim([0,repeat_length])
+    ax.set_ylim([-2,100])
+    #set figure to be modified
+    im, = ax.plot([], []) 
+    mngr = plt.get_current_fig_manager()
+    mngr.window.setGeometry(1250,50,640, 445)
     #intervalo_muestreo = int(ARRAY_SIZE / T)
     #--------------CALCULO DE VALORES------------------
     for k in range(ARRAY_SIZE):
-        #Estructura ARX
         y[0] = a1*y[1] + a2*y[2] + a3*y[3] + a4*y[4] + b0*u[d] + b1*u[d+1] + b2*u[d+2] + b3*u[d+3] + b4*u[d+4]
             
         #Suma de perturbación de salida a la salida
-        y[0] = y[0] + Ps 
+        y[0] = y[0] + Ps
         
         #Suma de perturbación de entrada a la entrada
-        u[0] = M + Pe    
+        u[0] = M + Pe
         
         #Creación de vector de intervalos kT 
         x[k] = k*T
-            
+        
+        #Se voltea el array de salida para poder graficar los valores   
+        y_flip = np.flip(y) 
+    
+        ani = animation.FuncAnimation(fig, func, frames=data.shape[0], interval=500, blit=False)
+        plt.show()
+        
         #shifts de los arrays
         y = np.roll(y,1)
         u = np.roll(u,1)
+        
+    plt.show()
     
     #se añade el retraso (0's) en la gráfica del escalón para visualización    
     for i in range(d+1): 
         u[i] = 0
-          
-    #Se voltea el array de salida para poder graficar los valores   
+        
     y_flip = np.flip(y) 
-            
-            
     #Para que funcione el intervalo de muestreo T (PUROS ENTEROS HASTA EL MOMENTO)
     for i in range(ARRAY_SIZE):
         if(x[i] < ARRAY_SIZE):
             y_interval[i] = y_flip[int(x[i])]
     
-    #GRAFICA DE SALIDA DE LA PLANTA
+    #GRAFICA DE SALIDA DE LA PLANTA ESTATICA
+    plt.figure(2)
+    mngr = plt.get_current_fig_manager()
+    mngr.window.setGeometry(1250,550,640, 445)
     plt.subplot(2, 1, 1)
     plt.plot(x,y_interval,'.') 
     plt.title('Salida de la Planta')
     plt.xlim([0, ARRAY_SIZE-4])  
     plt.ylabel('Amplitud')
     plt.xlabel('Tiempo (s)')
+    plt.grid(which='major', color='#CCCCCC', linestyle='--')
     
     plt.subplot(2, 1, 2)
     plt.plot(u, '-')
@@ -372,10 +412,11 @@ def func_ARX_2():
     plt.xlim([0, ARRAY_SIZE-4])  
     plt.ylabel('Amplitud')
     plt.xlabel('Tiempo (s)')
-        
+    plt.grid(which='major', color='#CCCCCC', linestyle='--') 
+    
     plt.subplots_adjust(left=0.1, bottom=0.1, right=0.9, top=0.9, wspace=0.4, hspace=0.4)
-    plt.show()    
-
+    plt.show()
+        
             
 #************** 1ER O R D E N ******************
 #-----------------------------------------------    
@@ -397,7 +438,7 @@ def func_orden1():
     e2.grid(row=6, column=1, pady=10, padx=3)
     e3.grid(row=7, column=1, pady=10, padx=3)
     
-    k1.insert(0, "1") 
+    k1.insert(0, "10") 
     tau1.insert(0, "2.7")
     teta_prima1.insert(0, "1.9")
     e14.insert(0,"1")
@@ -415,6 +456,16 @@ def func_orden1():
     
 
 def func_orden1_2():
+    global ani
+    def func(n):
+        global ani
+        im.set_xdata(np.arange(n)*T)
+        im.set_ydata(y_flip[0:n])
+        if n>repeat_length:
+            lim = ax.set_xlim(n-repeat_length, n)
+        else:
+            lim = ax.set_xlim(0,repeat_length)
+        return im
     
     M = float(e1.get())           #Magnitud de escalón 
     K1 = float(k1.get())           
@@ -441,12 +492,29 @@ def func_orden1_2():
     
     
     
-    
+    ARRAY_SIZE = 100
     y = np.zeros(ARRAY_SIZE)      #Lista valores de salida
     y_interval = np.zeros(ARRAY_SIZE)
     x = np.zeros(ARRAY_SIZE)      #Lista de intervalos kT
     u = np.zeros(ARRAY_SIZE)      #Lista valores de escalón entrada
-        
+    
+
+     #data generator
+    data = np.random.random((100,))
+    
+    #setup figure
+    fig = plt.figure(figsize=(5,4))
+    ax = fig.add_subplot(1,1,1)
+    ax.grid()
+    #rolling window size 
+    repeat_length = 50
+    
+    ax.set_xlim([0,repeat_length])
+    ax.set_ylim([-2,100])
+    #set figure to be modified
+    im, = ax.plot([], []) 
+    mngr = plt.get_current_fig_manager()
+    mngr.window.setGeometry(1250,50,640, 445)
     #intervalo_muestreo = int(ARRAY_SIZE / T)
     #--------------CALCULO DE VALORES------------------
     for k in range(ARRAY_SIZE):
@@ -460,31 +528,40 @@ def func_orden1_2():
         
         #Creación de vector de intervalos kT 
         x[k] = k*T
-            
+        
+        #Se voltea el array de salida para poder graficar los valores   
+        y_flip = np.flip(y) 
+    
+        ani = animation.FuncAnimation(fig, func, frames=data.shape[0], interval=500, blit=False)
+        plt.show()
+        
         #shifts de los arrays
         y = np.roll(y,1)
         u = np.roll(u,1)
+        
+    plt.show()
     
     #se añade el retraso (0's) en la gráfica del escalón para visualización    
     for i in range(d+1): 
         u[i] = 0
-          
-    #Se voltea el array de salida para poder graficar los valores   
+        
     y_flip = np.flip(y) 
-            
-            
     #Para que funcione el intervalo de muestreo T (PUROS ENTEROS HASTA EL MOMENTO)
     for i in range(ARRAY_SIZE):
         if(x[i] < ARRAY_SIZE):
             y_interval[i] = y_flip[int(x[i])]
     
-    #GRAFICA DE SALIDA DE LA PLANTA
+    #GRAFICA DE SALIDA DE LA PLANTA ESTATICA
+    plt.figure(2)
+    mngr = plt.get_current_fig_manager()
+    mngr.window.setGeometry(1250,550,640, 445)
     plt.subplot(2, 1, 1)
     plt.plot(x,y_interval,'.') 
     plt.title('Salida de la Planta')
     plt.xlim([0, ARRAY_SIZE-4])  
     plt.ylabel('Amplitud')
     plt.xlabel('Tiempo (s)')
+    plt.grid(which='major', color='#CCCCCC', linestyle='--')
     
     plt.subplot(2, 1, 2)
     plt.plot(u, '-')
@@ -492,9 +569,10 @@ def func_orden1_2():
     plt.xlim([0, ARRAY_SIZE-4])  
     plt.ylabel('Amplitud')
     plt.xlabel('Tiempo (s)')
-        
+    plt.grid(which='major', color='#CCCCCC', linestyle='--') 
+    
     plt.subplots_adjust(left=0.1, bottom=0.1, right=0.9, top=0.9, wspace=0.4, hspace=0.4)
-    plt.show()   
+    plt.show()  
     
 
 #************** 2NDO O R D E N ******************
@@ -519,9 +597,9 @@ def func_orden2():
     e3.grid(row=8, column=1, pady=10, padx=3)
     
     k1.insert(0, "1") 
-    zeta.insert(0, "0.5")
-    wn.insert(0, "2.7")
-    teta_prima1.insert(0, "1.9")
+    zeta.insert(0, "0.1")
+    wn.insert(0, "1")
+    teta_prima1.insert(0, "2")
     e14.insert(0,"1")
     e1.insert(0,"2")
     e2.insert(0, "0")
@@ -537,7 +615,16 @@ def func_orden2():
     l3.grid(row=8, column=0)
 
 def func_orden2_2():
-
+    global ani
+    def func(n):
+        global ani
+        im.set_xdata(np.arange(n)*T)
+        im.set_ydata(y_flip[0:n])
+        if n>repeat_length:
+            lim = ax.set_xlim(n-repeat_length, n)
+        else:
+            lim = ax.set_xlim(0,repeat_length)
+        return im
     M = float(e1.get()) 
     Pe = float(e2.get())          #Magnitud ruido entrada 
     Ps = float(e3.get())          #Magnitud ruido salida           
@@ -571,12 +658,29 @@ def func_orden2_2():
     
     
     
-    
+    ARRAY_SIZE = 100
     y = np.zeros(ARRAY_SIZE)      #Lista valores de salida
     y_interval = np.zeros(ARRAY_SIZE)
     x = np.zeros(ARRAY_SIZE)      #Lista de intervalos kT
     u = np.zeros(ARRAY_SIZE)      #Lista valores de escalón entrada
-        
+    
+
+     #data generator
+    data = np.random.random((100,))
+    
+    #setup figure
+    fig = plt.figure(figsize=(5,4))
+    ax = fig.add_subplot(1,1,1)
+    ax.grid()
+    #rolling window size 
+    repeat_length = 50
+    
+    ax.set_xlim([0,repeat_length])
+    ax.set_ylim([-2,100])
+    #set figure to be modified
+    im, = ax.plot([], []) 
+    mngr = plt.get_current_fig_manager()
+    mngr.window.setGeometry(1250,50,640, 445)
     #intervalo_muestreo = int(ARRAY_SIZE / T)
     #--------------CALCULO DE VALORES------------------
     for k in range(ARRAY_SIZE):
@@ -590,25 +694,33 @@ def func_orden2_2():
         
         #Creación de vector de intervalos kT 
         x[k] = k*T
-            
+        
+        #Se voltea el array de salida para poder graficar los valores   
+        y_flip = np.flip(y) 
+    
+        ani = animation.FuncAnimation(fig, func, frames=data.shape[0], interval=500, blit=False)
+        plt.show()
+        
         #shifts de los arrays
         y = np.roll(y,1)
         u = np.roll(u,1)
+        
+    plt.show()
     
     #se añade el retraso (0's) en la gráfica del escalón para visualización    
     for i in range(d+1): 
         u[i] = 0
-          
-    #Se voltea el array de salida para poder graficar los valores   
+        
     y_flip = np.flip(y) 
-            
-            
     #Para que funcione el intervalo de muestreo T (PUROS ENTEROS HASTA EL MOMENTO)
     for i in range(ARRAY_SIZE):
         if(x[i] < ARRAY_SIZE):
             y_interval[i] = y_flip[int(x[i])]
     
-    #GRAFICA DE SALIDA DE LA PLANTA
+    #GRAFICA DE SALIDA DE LA PLANTA ESTATICA
+    plt.figure(2)
+    mngr = plt.get_current_fig_manager()
+    mngr.window.setGeometry(1250,550,640, 445)
     plt.subplot(2, 1, 1)
     plt.plot(x,y_interval,'.') 
     plt.title('Salida de la Planta')
@@ -623,8 +735,8 @@ def func_orden2_2():
     plt.xlim([0, ARRAY_SIZE-4])  
     plt.ylabel('Amplitud')
     plt.xlabel('Tiempo (s)')
-    plt.grid(which='major', color='#CCCCCC', linestyle='--')
-        
+    plt.grid(which='major', color='#CCCCCC', linestyle='--') 
+    
     plt.subplots_adjust(left=0.1, bottom=0.1, right=0.9, top=0.9, wspace=0.4, hspace=0.4)
     plt.show()
 #---------------------------------------------------------------------------------
@@ -682,6 +794,17 @@ def func_auto():
 
 def func_auto_2():
     
+    global ani
+    def func(n):
+        global ani
+        im.set_xdata(np.arange(n)*T)
+        im.set_ydata(y_flip[0:n])
+        if n>repeat_length:
+            lim = ax.set_xlim(n-repeat_length, n)
+        else:
+            lim = ax.set_xlim(0,repeat_length)
+        return im
+    
     M = float(e1.get())           #Magnitud de escalón 
     Pe = float(e2.get())          #Magnitud ruido entrada 
     Ps = float(e3.get())          #Magnitud ruido salida 
@@ -713,14 +836,31 @@ def func_auto_2():
     beta0 = Kc*(1 + (T/Tau_i) + (Tau_d/T))
     beta1 = Kc*(-1 - (2*Tau_d/T))
     beta2 = Kc*(Tau_d/T)
-        
+    
+    ARRAY_SIZE = 100    
     y = np.zeros(ARRAY_SIZE)      #Lista valores de salida
     y_interval = np.zeros(ARRAY_SIZE)
     m_interval = np.zeros(ARRAY_SIZE)
     x = np.zeros(ARRAY_SIZE)      #Lista de intervalos kT
     u = np.zeros(ARRAY_SIZE)      #Lista valores de escalón entrada
     m = np.zeros(ARRAY_SIZE)      #Lista valores de controlador entrada
-        
+      
+     #data generator
+    data = np.random.random((100,))
+    
+    #setup figure
+    fig = plt.figure(figsize=(5,4))
+    ax = fig.add_subplot(1,1,1)
+    ax.grid()
+    #rolling window size 
+    repeat_length = 50
+    
+    ax.set_xlim([0,repeat_length])
+    ax.set_ylim([-2,100])
+    #set figure to be modified
+    im, = ax.plot([], []) 
+    mngr = plt.get_current_fig_manager()
+    mngr.window.setGeometry(1250,50,640, 445)
     #intervalo_muestreo = int(ARRAY_SIZE / T)
     
     #--------------CALCULO DE VALORES------------------
@@ -735,15 +875,21 @@ def func_auto_2():
         #Suma de perturbación de salida a la salida
         y[0] = y[0] + Ps
         
-
         
         #Creación de vector de intervalos kT 
         x[k] = k*T
             
+        #Se voltea el array de salida para poder graficar los valores   
+        y_flip = np.flip(y) 
+    
+        ani = animation.FuncAnimation(fig, func, frames=data.shape[0], interval=500, blit=False)
+        plt.show()
+        
         #shifts de los arrays
         y = np.roll(y,1)
         u = np.roll(u,1)
         m = np.roll(m,1)
+    plt.show()
     
     #se añade el retraso (0's) en la gráfica del escalón para visualización    
     for i in range(d+1): 
@@ -760,6 +906,9 @@ def func_auto_2():
             m_interval[i] = m_flip[int(x[i])]
     
     #GRAFICA DE SALIDA DE LA PLANTA
+    plt.figure(2)
+    mngr = plt.get_current_fig_manager()
+    mngr.window.setGeometry(1250,550,640, 445)
     plt.subplot(2, 1, 1)
     plt.plot(x,y_interval,'-') 
     plt.plot(x,u,'-') 
@@ -767,16 +916,19 @@ def func_auto_2():
     plt.xlim([0, ARRAY_SIZE-4])  
     plt.ylabel('Amplitud')
     plt.xlabel('Tiempo (s)')
-    
+    plt.grid(which='major', color='#CCCCCC', linestyle='--') 
+
     plt.subplot(2, 1, 2)
     plt.plot(x, m_interval, '-')
     plt.title('Salida del Controlador')
     plt.xlim([0, ARRAY_SIZE-4])  
     plt.ylabel('Amplitud')
     plt.xlabel('Tiempo (s)')
-        
+    plt.grid(which='major', color='#CCCCCC', linestyle='--') 
+    
     plt.subplots_adjust(left=0.1, bottom=0.1, right=0.9, top=0.9, wspace=0.4, hspace=0.4)
     plt.show()   
+    
 b_man = Button(root, text="Manual", command=func_manual, height=2, width=20, bg='#567', fg='White', font = "Verdana 10 bold italic")   
 b_man.grid(row=1,column=1,pady=10)
 
@@ -794,9 +946,3 @@ b_sim4 = Button(root, text="Empezar simulación", command=func_auto_2, bg='#567'
 reg1 = Button(root, text="Regresar", command=func_inicio, bg='#567', fg='White', font = "Verdana 8 bold italic")
 
 root.mainloop()
-
-
- 
-
-
-    
